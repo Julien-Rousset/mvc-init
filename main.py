@@ -1,38 +1,79 @@
 from pathlib import Path
+import sys
+import subprocess
 import json
 
-listePath = []
-currentPath = Path().cwd()
+class MvcInit:
+    folders_keys = ["app/", "public/"]
+    currentDir = Path().cwd()
 
-for element in ["Views", "Controllers", "Models", "Utils"]:
-    listePath.append(currentPath / f"app/{element}")
+    def __init__(self, *args):
+        self.paths = list(args)
+        
+        for keys in __class__.folders_keys:
+            folderPath = __class__.currentDir / keys
+            folderPath.mkdir()
 
-for path in listePath:
-    path.mkdir(exist_ok=True, parents=True)
+    def constructAppFolder(self):
+        app_folder = __class__.currentDir / __class__.folders_keys[0]
 
-publicFodler = currentPath / "public"
-publicFodler.mkdir(exist_ok=True, parents=True)
+        for path in self.paths:
+            children_folder = app_folder / path
+            children_folder.mkdir()
+        
+    def constructPublicFolder(self):
+        public_folder = __class__.currentDir / __class__.folders_keys[1]
+        
+        index_file = public_folder / "index.php"
+        index_file.touch()
 
-indexFile = publicFodler / "index.php"
-indexFile.touch()
+        with open(index_file, "w") as f:
+            f.write("<?php\n\n")
+            f.write("require_once __DIR__ . '/../vendor/autoload.php';\n\n")
+            f.write("$router = new AltoRouter();\n\n")
+        
+        htaccess_file = public_folder / ".htaccess"
+        htaccess_file.touch()
 
-htaccessFile = publicFodler / ".htaccess"
-htaccessFile.touch()
+        with open(htaccess_file, "w") as f:
+            f.write("RewriteEngine On\n")
+            f.write("RewriteCond %{REQUEST_URI}::$1 ^(/.+)/(.*)::\\2$\n")
+            f.write("RewriteRule ^(.*) - [E=BASE_URI:%1]\n")
+            f.write("RewriteCond %{REQUEST_FILENAME} !-d\n")
+            f.write("RewriteCond %{REQUEST_FILENAME} !-f\n")
+            f.write("RewriteRule ^(.*)$ index.php?_url=/$1 [QSA,L]")
+    
+    def initComposer(self):
+        composer_file = __class__.currentDir / "composer.json"
+        composer_file.touch()
 
-composerFile = currentPath / "composer.json"
-composerFile.touch()
+        namespace_key = input("Do you want rename Namespace's Default ? ")
 
-with open(indexFile, "w") as f:
-    f.write("<?php \nrequire_once __DIR__ . '/../vendor/autoload.php';")
+        if namespace_key == False:
+            namespace_key = "App"
 
-with open(htaccessFile, "w") as f:
-    f.write("RewriteEngine On\n")
-    f.write("RewriteCond %{REQUEST_URI}::$1 ^(/.+)/(.*)::\\2$\n")
-    f.write("RewriteRule ^(.*) - [E=BASE_URI:%1]\n")
-    f.write("RewriteCond %{REQUEST_FILENAME} !-d\n")
-    f.write("RewriteCond %{REQUEST_FILENAME} !-f\n")
-    f.write("RewriteRule ^(.*)$ index.php?_url=/$1 [QSA,L]")
+        with open(composer_file, "w") as f:
+            json.dump({"autoload": {"psr-4": {f"{namespace_key}\\": "app/"}}}, f, indent=4)
 
-with open(composerFile, "w") as f:
-    namespaceName = input("Name of name space (like App): ")
-    json.dump({"autoload": {"psr-4": {f"{namespaceName}\\": "app/"}}}, f, indent=4)
+        bash_script = __class__.currentDir / "mvc-init.sh"
+        bash_script.touch()
+
+        with open(bash_script, "w") as f:
+            f.write("composer install\n")
+            f.write("composer dump-autoload\n")
+            f.write("composer require altorouter/altorouter")
+        
+        subprocess.run(["sh", "mvc-init.sh"])
+        subprocess.run(["rm", "mvc-init.sh"])
+
+PATHS = [
+    "Views",
+    "Utils",
+    "Models",
+    "Controllers"
+]
+
+mvc_init = MvcInit(*PATHS)
+mvc_init.constructAppFolder()
+mvc_init.initComposer()
+mvc_init.constructPublicFolder()
