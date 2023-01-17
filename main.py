@@ -66,14 +66,21 @@ class MvcInit:
         subprocess.run(["sh", "mvc-init.sh"])
         subprocess.run(["rm", "mvc-init.sh"])
 
-PATHS = [
-    "Views",
-    "Utils",
-    "Models",
-    "Controllers"
-]
+class App:
+    PATHS = [
+        "Views",
+        "Utils",
+        "Models",
+        "Controllers"
+    ]
+    def __init__(self):
+        self.init = MvcInit(*__class__.PATHS)
+    
+    def run(self):
+        self.init.constructAppFolder()
+        self.init.initComposer()
+        self.init.constructPublicFolder()
+    
+app = App();
 
-mvc_init = MvcInit(*PATHS)
-mvc_init.constructAppFolder()
-mvc_init.initComposer()
-mvc_init.constructPublicFolder()
+app.run();
